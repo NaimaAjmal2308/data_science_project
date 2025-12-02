@@ -208,12 +208,9 @@ pip install -r requirements.txt
 
 
 2. Run the Scraper
-To start collecting data:
+To start collecting data
 
-Bash
 
-python scraper.py
-Note: The script will open a Chrome browser. You must manually log in to Glassdoor when prompted in the terminal, then press Enter to continue scraping.
 
 
 

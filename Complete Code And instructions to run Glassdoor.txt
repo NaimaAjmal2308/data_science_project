@@ -1,0 +1,223 @@
+1. requirements.txt
+pandas
+selenium
+webdriver-manager
+openpyxl
+
+2. config.py
+# --- TARGETS CONFIGURATION ---
+# Format: ("Company Name", "Industry", "URL")
+
+TARGETS = [
+    # --- Infrastructure ---
+    ("Bechtel", "Infrastructure", "https://www.glassdoor.com/Reviews/Bechtel-Reviews-E2731.htm"),
+    ("Jacobs Engineering", "Infrastructure", "https://www.glassdoor.com/Reviews/Jacobs-Reviews-E913.htm"),
+    ("AECOM", "Infrastructure", "https://www.glassdoor.com/Reviews/AECOM-Reviews-E5632.htm"),
+    ("Fluor", "Infrastructure", "https://www.glassdoor.com/Reviews/Fluor-Reviews-E262.htm"),
+    ("Kiewit Corporation", "Infrastructure", "https://www.glassdoor.com/Reviews/Kiewit-Corporation-Reviews-E2935.htm"),
+    ("Skanska", "Infrastructure", "https://www.glassdoor.com/Reviews/Skanska-Reviews-E10372.htm"),
+    ("Turner Construction", "Infrastructure", "https://www.glassdoor.com/Reviews/Turner-Construction-Reviews-E19014.htm"),
+    ("Vinci", "Infrastructure", "https://www.glassdoor.com/Reviews/Vinci-Reviews-E10584.htm"),
+    ("Balfour Beatty", "Infrastructure", "https://www.glassdoor.com/Reviews/Balfour-Beatty-Reviews-E10135.htm"),
+    ("Atkins Réalis", "Infrastructure", "https://www.glassdoor.com/Reviews/Atkins-Reviews-E8559.htm"),
+    ("DPR Construction", "Infrastructure", "https://www.glassdoor.com/Reviews/DPR-Construction-Reviews-E3157.htm"),
+    ("Arcadis", "Infrastructure", "https://www.glassdoor.com/Reviews/Arcadis-Reviews-E32491.htm"),
+    ("Parsons Corporation", "Infrastructure", "https://www.glassdoor.com/Reviews/Parsons-Corporation-Reviews-E4006.htm"),
+    ("HDR Inc.", "Infrastructure", "https://www.glassdoor.com/Reviews/HDR-Reviews-E15172.htm"),
+    ("WSP Global", "Infrastructure", "https://www.glassdoor.com/Reviews/WSP-Reviews-E13584.htm"),
+
+    # --- Healthcare ---
+    ("Mayo Clinic", "Healthcare", "https://www.glassdoor.com/Reviews/Mayo-Clinic-Reviews-E19884.htm"),
+    ("Kaiser Permanente", "Healthcare", "https://www.glassdoor.com/Reviews/Kaiser-Permanente-Reviews-E19466.htm"),
+    ("Cleveland Clinic", "Healthcare", "https://www.glassdoor.com/Reviews/Cleveland-Clinic-Reviews-E17787.htm"),
+    ("Johns Hopkins Medicine", "Healthcare", "https://www.glassdoor.com/Reviews/The-Johns-Hopkins-University-Reviews-E2851.htm"),
+    ("HCA Healthcare", "Healthcare", "https://www.glassdoor.com/Reviews/HCA-Healthcare-Reviews-E2062.htm"),
+    ("UnitedHealth Group", "Healthcare", "https://www.glassdoor.com/Reviews/UnitedHealth-Group-Reviews-E1991.htm"),
+    ("CVS Health", "Healthcare", "https://www.glassdoor.com/Reviews/CVS-Health-Reviews-E437.htm"),
+    ("Humana", "Healthcare", "https://www.glassdoor.com/Reviews/Humana-Reviews-E340.htm"),
+    ("Cigna", "Healthcare", "https://www.glassdoor.com/Reviews/The-Cigna-Group-Reviews-E119.htm"),
+    ("Tenet Healthcare", "Healthcare", "https://www.glassdoor.com/Reviews/TENET-Reviews-E5790682.htm"),
+    ("Boston Scientific", "Healthcare", "https://www.glassdoor.com/Reviews/Boston-Scientific-Reviews-E2187.htm"),
+    ("Pfizer", "Healthcare", "https://www.glassdoor.com/Reviews/Pfizer-Reviews-E525.htm"),
+    ("Johnson & Johnson", "Healthcare", "https://www.glassdoor.com/Reviews/Johnson-and-Johnson-Reviews-E364.htm"),
+    ("Roche", "Healthcare", "https://www.glassdoor.com/Reviews/Roche-Reviews-E3480.htm"),
+    ("GSK", "Healthcare", "https://www.glassdoor.com/Reviews/GSK-Reviews-E3477.htm")
+]
+
+
+
+3. scraper.py
+
+import time
+import os
+import random
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# Import Targets from config file
+from config import TARGETS
+
+# --- SETTINGS ---
+OUTPUT_FILE = "glassdoor_raw_reviews.csv"
+PAGES_PER_COMPANY = 10  # Adjust as needed
+
+def scrape_glassdoor():
+    options = webdriver.ChromeOptions()
+    options.add_argument("--start-maximized")
+    # Anti-detection settings
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
+    
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    wait = WebDriverWait(driver, 25)
+
+    # --- MANUAL LOGIN STEP ---
+    try:
+        driver.get("https://www.glassdoor.com/index.htm")
+    except: pass
+
+    print("\n" + "="*60)
+    print("⚠  ACTION REQUIRED: Please Log in to Glassdoor manually in the browser window.")
+    print("⚠  Press ENTER in this terminal once you are logged in.")
+    print("="*60)
+    input("Press Enter here after logging in...")
+
+    all_reviews = []
+
+    for name, industry, url in TARGETS:
+        print(f"\n🚀 Scraping Company: {name} ({industry})")
+        try:
+            driver.get(url)
+        except:
+            print(f"  - Failed to load URL for {name}, skipping.")
+            continue
+
+        for page in range(1, PAGES_PER_COMPANY + 1):
+            print(f"  - Page {page}: processing...")
+            try:
+                # Wait for reviews to load
+                try:
+                    wait.until(EC.presence_of_element_located((By.XPATH, "//div[@data-test='review-details-container']")))
+                except:
+                    print("    (Timeout waiting for reviews, moving on...)")
+
+                # Find review elements
+                reviews = driver.find_elements(By.XPATH, "//div[@data-test='review-details-container']")
+
+                if not reviews:
+                    print("    - No reviews found on this page.")
+                
+                count = 0
+                for rev in reviews:
+                    try:
+                        # Extract Rating
+                        try: rating = rev.find_element(By.XPATH, ".//span[@data-test='review-rating-label']").text
+                        except: rating = "N/A"
+
+                        # Extract Pros
+                        try: pros = rev.find_element(By.XPATH, ".//span[@data-test='review-text-PROS']").text
+                        except: pros = "N/A"
+
+                        # Extract Cons
+                        try: cons = rev.find_element(By.XPATH, ".//span[@data-test='review-text-CONS']").text
+                        except: cons = "N/A"
+
+                        # Extract Date
+                        try: date_text = rev.find_element(By.CLASS_NAME, "timestamp_reviewDate__dsF9n").text
+                        except: date_text = "N/A"
+
+                        # Extract Role
+                        try: role = rev.find_element(By.XPATH, ".//span[@data-test='review-avatar-label']").text
+                        except: role = "N/A"
+
+                        # Combine into full text format for cleaner processing later
+                        full_text = f"Role: {role} | Date: {date_text} | Pros: {pros} | Cons: {cons}"
+
+                        all_reviews.append({
+                            "company_name": name,
+                            "industry": industry,
+                            "rating": rating,
+                            "full_review_text": full_text,
+                            "pros": pros,
+                            "cons": cons
+                        })
+                        count += 1
+                    except Exception as e:
+                        continue
+                
+                print(f"    - Collected {count} reviews.")
+
+                # Pagination Logic
+                try:
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    time.sleep(1)
+                    next_btn = driver.find_element(By.XPATH, "//button[@data-test='next-page']")
+                    
+                    if not next_btn.is_enabled():
+                        print("    - Next button disabled. Moving to next company.")
+                        break
+                    
+                    driver.execute_script("arguments[0].click();", next_btn)
+                    time.sleep(random.uniform(4, 7)) # Random sleep
+                except:
+                    print("    - No next page or error. Moving to next company.")
+                    break
+
+            except Exception as e:
+                print(f"    - Error on page: {e}")
+                break
+
+    driver.quit()
+
+    # Save to CSV
+    if all_reviews:
+        df = pd.DataFrame(all_reviews)
+        df.to_csv(OUTPUT_FILE, index=False, encoding='utf-8')
+        print(f"\n✅ SUCCESS! Scraped {len(all_reviews)} reviews. Saved to {OUTPUT_FILE}")
+    else:
+        print("\n❌ No reviews scraped.")
+
+if __name__ == "__main__":
+    scrape_glassdoor()
+
+
+4. README.md# Glassdoor Sentiment Analysis Scraper
+
+This project contains scripts to scrape reviews from Glassdoor for specific Healthcare and Infrastructure companies, and tools to clean and normalize the data for sentiment analysis.
+
+## 📁 Project Structure
+
+- `scraper.py`: The main script using Selenium to scrape Glassdoor reviews.
+- `cleaner.py`: A utility script to merge multiple CSV files, normalize dates, extract job titles, and ensure a minimum dataset size (1500 reviews).
+- `config.py`: Contains the list of target companies and URLs. Edit this file to add/remove companies.
+- `requirements.txt`: List of Python dependencies.
+
+## 🚀 How to Run
+
+### 1. Install Dependencies
+Make sure you have Python installed. Run the following command in your terminal:
+```bash
+pip install -r requirements.txt
+
+
+
+2. Run the Scraper
+To start collecting data:
+
+Bash
+
+python scraper.py
+Note: The script will open a Chrome browser. You must manually log in to Glassdoor when prompted in the terminal, then press Enter to continue scraping.
+
+
+
+
+
+
+

@@ -91,7 +91,7 @@ def scrape_glassdoor():
     all_reviews = []
 
     for name, industry, url in TARGETS:
-        print(f"\n🚀 Scraping Company: {name} ({industry})")
+        print(f"\n Scraping Company: {name} ({industry})")
         try:
             driver.get(url)
         except:
@@ -179,9 +179,9 @@ def scrape_glassdoor():
     if all_reviews:
         df = pd.DataFrame(all_reviews)
         df.to_csv(OUTPUT_FILE, index=False, encoding='utf-8')
-        print(f"\n✅ SUCCESS! Scraped {len(all_reviews)} reviews. Saved to {OUTPUT_FILE}")
+        print(f"\n SUCCESS! Scraped {len(all_reviews)} reviews. Saved to {OUTPUT_FILE}")
     else:
-        print("\n❌ No reviews scraped.")
+        print("\n No reviews scraped.")
 
 if __name__ == "__main__":
     scrape_glassdoor()
@@ -191,14 +191,14 @@ if __name__ == "__main__":
 
 This project contains scripts to scrape reviews from Glassdoor for specific Healthcare and Infrastructure companies, and tools to clean and normalize the data for sentiment analysis.
 
-## 📁 Project Structure
+##  Project Structure
 
 - `scraper.py`: The main script using Selenium to scrape Glassdoor reviews.
 - `cleaner.py`: A utility script to merge multiple CSV files, normalize dates, extract job titles, and ensure a minimum dataset size (1500 reviews).
 - `config.py`: Contains the list of target companies and URLs. Edit this file to add/remove companies.
 - `requirements.txt`: List of Python dependencies.
 
-## 🚀 How to Run
+##  How to Run
 
 ### 1. Install Dependencies
 Make sure you have Python installed. Run the following command in your terminal:
@@ -214,6 +214,7 @@ Bash
 
 python scraper.py
 Note: The script will open a Chrome browser. You must manually log in to Glassdoor when prompted in the terminal, then press Enter to continue scraping.
+
 
 
 
